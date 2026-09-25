@@ -1,3 +1,4 @@
+import { type AithosInteraction, aithosMiddleware } from '@aithos/agent-trust';
 import { z } from 'zod';
 
 import { createA2aAgentCard } from './a2a-agent-card.js';
@@ -44,13 +45,16 @@ export function createSalesAgentHttpHandler(
   input: CreateSalesAgentHttpHandlerInput,
 ): SalesAgentHttpHandler {
   return {
-    handle: async (request) => handleRequest(input, request),
+    handle: aithosMiddleware(input.aithos, (request, aithos) =>
+      handleRequest(input, request, aithos),
+    ),
   };
 }
 
 async function handleRequest(
   input: CreateSalesAgentHttpHandlerInput,
   request: Request,
+  aithos?: AithosInteraction,
 ): Promise<Response> {
   const start = Date.now();
   const url = new URL(request.url);
@@ -66,7 +70,7 @@ async function handleRequest(
     const response =
       request.method === 'GET'
         ? handleGetRequest(input, url)
-        : await handlePostRequest(input.app, request, url);
+        : await handlePostRequest(input.app, request, url, aithos);
     log(`← ${response.status} (${Date.now() - start}ms)`);
     return response;
   } catch (error) {
@@ -135,6 +139,7 @@ async function handlePostRequest(
   app: SalesAgentHttpApp,
   request: Request,
   url: URL,
+  aithos?: AithosInteraction,
 ): Promise<Response> {
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Not found' }, 404);
@@ -142,14 +147,14 @@ async function handlePostRequest(
 
   switch (url.pathname) {
     case '/':
-      return handleJsonRpcRequest(app, await readJson(request));
+      return handleJsonRpcRequest(app, await readJson(request), aithos);
     case '/sessions':
       return jsonResponse(app.createSession(parseSession(await readJson(request))), 201);
     case '/chat':
       return jsonResponse(await app.chat(chatSchema.parse(await readJson(request))));
     case '/message:send':
       assertA2aVersion(request);
-      return a2aResponse(await handleA2aSendMessage(app, await readJson(request)));
+      return a2aResponse(await handleA2aSendMessage(app, await readJson(request), aithos));
     case '/commerce/customer':
       return jsonResponse(
         await app.commerceCustomerApi.handle(parseCommerceRequest(await readJson(request))),
@@ -167,13 +172,17 @@ async function handlePostRequest(
   }
 }
 
-async function handleJsonRpcRequest(app: SalesAgentHttpApp, body: unknown): Promise<Response> {
+async function handleJsonRpcRequest(
+  app: SalesAgentHttpApp,
+  body: unknown,
+  aithos?: AithosInteraction,
+): Promise<Response> {
   const rpc = parseJsonRpcBody(body);
 
   try {
     switch (rpc.method) {
       case 'message/send': {
-        const result = await handleA2aSendMessage(app, rpc.params);
+        const result = await handleA2aSendMessage(app, rpc.params, aithos);
         return jsonResponse({ jsonrpc: '2.0', id: rpc.id, result });
       }
       default:
