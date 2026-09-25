@@ -1,3 +1,5 @@
+import type { AithosInteraction } from '@aithos/agent-trust';
+
 import type { Ap2PaymentMandate } from '../contracts/commerce.js';
 import type { AgentRuntimeResponse } from '../runtime/agent-runtime.js';
 import type { A2aMessage, A2aPart } from './a2a-schemas.js';
@@ -14,7 +16,11 @@ export interface A2aHttpApp {
   ): void;
 }
 
-export async function handleA2aSendMessage(app: A2aHttpApp, input: unknown): Promise<unknown> {
+export async function handleA2aSendMessage(
+  app: A2aHttpApp,
+  input: unknown,
+  aithos?: AithosInteraction,
+): Promise<unknown> {
   const parsed = sendMessageSchema.parse(input);
   const agentSessionId = extractAgentSessionId(parsed.message) ?? createA2aSession(app);
   const message = extractTextMessage(parsed.message.parts);
@@ -31,6 +37,11 @@ export async function handleA2aSendMessage(app: A2aHttpApp, input: unknown): Pro
   }
 
   const response = await app.chat({ agentSessionId, message });
+
+  if (response.completedCheckout?.status === 'completed') {
+    // Score 1 means a checkout completed this turn, not general client trustworthiness.
+    await aithos?.rate(agentSessionId, 1);
+  }
 
   return createCompletedTask(parsed.message, agentSessionId, response);
 }

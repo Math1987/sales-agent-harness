@@ -59,6 +59,7 @@
     "typescript": "latest"
   },
   "dependencies": {
+    "@aithos/agent-trust": "0.2.0-alpha.2",
     "@arizeai/openinference-instrumentation-langchain": "^4.0.14",
     "@langchain/core": "^1.2.1",
     "@langchain/langgraph-checkpoint": "^1.1.3",

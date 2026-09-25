@@ -1,3 +1,5 @@
+import type { Aithos } from '@aithos/agent-trust';
+
 import type { CommerceApiRequest } from '../api/harness-api.js';
 import type { Ap2PaymentMandate } from '../contracts/commerce.js';
 import type { AgentHarnessConfig } from '../contracts/config.js';
@@ -33,6 +35,7 @@ export interface CheckoutResumeConfig {
 
 export interface CreateSalesAgentHttpHandlerInput {
   readonly app: SalesAgentHttpApp;
+  readonly aithos?: Aithos | undefined;
   readonly agentConfig?: AgentHarnessConfig | undefined;
   readonly ucpPlatformProfile?: unknown;
   readonly checkoutResume?: CheckoutResumeConfig;
